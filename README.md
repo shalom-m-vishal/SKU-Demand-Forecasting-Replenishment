@@ -1,126 +1,185 @@
 # SKU Demand Forecasting & Replenishment Intelligence
 
-An intelligent inventory planning application that forecasts SKU-location demand and recommends replenishment quantities using demand patterns, lead times, safety stock, and ordering constraints.
+An end-to-end inventory planning application that forecasts demand at the **SKU-location level** and recommends replenishment quantities using lead time, safety stock, and ordering constraints. The system surfaces decisions, exceptions, and evaluation metrics while preserving traceability.
 
-## Overview
+## Problem Statement
 
-Inventory teams need to maintain sufficient stock while avoiding overstocking and unnecessary inventory costs. This project provides a data-driven approach to demand forecasting and replenishment planning through an interactive Streamlit dashboard.
+Inventory teams must decide **what to replenish, how much to order, and when to order** across multiple products and locations. Poor demand forecasts can cause stockouts, excess inventory, and avoidable costs.
+
+This project combines demand forecasting with rule-based replenishment recommendations to support consistent, explainable inventory decisions.
 
 ## Key Features
 
-- **Demand Forecasting:** Generate demand forecasts for individual SKUs and locations.
-- **Replenishment Recommendations:** Calculate recommended order quantities based on forecast demand and inventory requirements.
-- **Safety Stock & Lead Time:** Account for safety stock and supplier lead times when planning replenishment.
-- **Ordering Constraints:** Incorporate applicable ordering rules and supplier contract information.
-- **Interactive Dashboard:** Explore forecasting and replenishment results using Streamlit and Plotly.
-- **Data Validation:** Validate input data before processing.
-- **Database Integration:** Store application data in SQLite for local persistence.
+- **Synthetic retail data generation** for repeatable development and evaluation.
+- **SKU-location demand forecasting** using historical demand.
+- **Forecast evaluation** with metrics such as MAE and RMSE.
+- **Replenishment recommendations** based on lead time, safety stock, current inventory, and ordering rules.
+- **Ordering constraints** such as minimum order quantity (MOQ), pack-size multiples, and supplier or storage limits where configured.
+- **Data validation** to flag missing, invalid, or inconsistent records.
+- **Exception handling** for cases such as insufficient supplier data, unusual demand, or constrained order quantities.
+- **Traceability** through saved outputs and SQLite persistence.
+- **Interactive dashboard** built with Streamlit and Plotly.
+
+## End-to-End Workflow
+
+1. Generate or load SKU, location, inventory, supplier, and historical demand data.
+2. Validate input data and identify data-quality issues.
+3. Forecast demand for each SKU-location combination.
+4. Evaluate forecast quality using available historical observations.
+5. Calculate replenishment needs using lead time and safety-stock policies.
+6. Apply ordering constraints such as MOQ and pack size.
+7. Display recommendations, exceptions, and relevant metrics in the dashboard.
+8. Save results to SQLite for traceability.
+
+## Data Design
+
+The workflow can use related entities such as:
+
+- **SKU:** product identifier and product-level attributes.
+- **Location:** store, warehouse, or fulfillment location.
+- **Demand history:** dated demand observations for each SKU-location pair.
+- **Inventory:** available stock and other inventory quantities supported by the implementation.
+- **Supplier / contract:** lead time, unit cost, MOQ, pack size, and other configured purchasing constraints.
+- **Forecast:** predicted demand and evaluation results.
+- **Replenishment recommendation:** proposed order quantity, estimated cost, and decision or exception details.
+
+The project uses generated data so the workflow can be tested without exposing real business data. Dataset size should be selected to fit the available machine resources; large SKU-location-date combinations can create millions of rows.
+
+## Forecasting and Evaluation
+
+Forecasting is performed for SKU-location demand using the methods implemented in `forecasting.py`.
+
+Evaluation can include:
+
+- **MAE (Mean Absolute Error):** average absolute difference between actual and predicted demand.
+- **RMSE (Root Mean Squared Error):** penalizes larger forecast errors more heavily.
+
+Metrics should be calculated on appropriate historical or held-out observations. Forecast accuracy depends on the generated data, selected forecasting method, and evaluation window; results should not be interpreted as a guarantee of real-world performance.
+
+## Replenishment Logic
+
+The replenishment module uses forecast demand, lead time, safety stock, and available inventory to estimate whether an order is needed.
+
+A common starting point is:
+
+```text
+Lead-time demand = Forecast daily demand × Lead time in days
+Reorder threshold = Lead-time demand + Safety stock
+Raw order quantity = max(0, Reorder threshold − Inventory position)
+```
+
+The final recommendation can then be adjusted to comply with configured ordering constraints, for example:
+
+- Raise a positive order to the supplier's MOQ when required.
+- Round the order quantity up to a valid pack-size multiple.
+- Check supplier, storage, or other configured limits.
+- Flag records where required inputs are missing or constraints cannot be satisfied.
+
+The exact calculations and supported constraints are defined by the implementation in `replenishment.py`.
+
+## Validation and Exceptions
+
+The application validates input data before making recommendations. Depending on the configured rules, exceptions may include:
+
+- Missing or invalid demand, inventory, or supplier fields.
+- Invalid or non-positive lead times, pack sizes, or ordering quantities.
+- Missing unit-cost or contract mappings.
+- Unusual demand observations that require review.
+- Recommendations altered by MOQ or pack-size rules.
+- Orders that cannot be recommended safely because required information is unavailable.
+
+Exceptions should remain visible rather than being silently treated as normal recommendations.
 
 ## Technology Stack
 
-| Technology | Purpose |
-|---|---|
-| Python | Core application and business logic |
-| Streamlit | Interactive web dashboard |
-| Pandas | Data processing and analysis |
-| Plotly | Data visualization |
-| SQLite | Local database storage |
-| Forecasting models | Demand prediction |
-| Git & GitHub | Version control and project hosting |
+- **Python** — application logic and data processing
+- **Streamlit** — interactive web application
+- **Pandas** — tabular data processing
+- **Plotly** — interactive charts
+- **SQLite** — local persistence
+- **Forecasting and replenishment modules** — demand prediction and inventory decision logic
 
 ## Project Structure
 
 ```text
 SKU-Demand-Forecasting-Replenishment/
-├── app.py             # Streamlit application
-├── generator.py       # Data generation
-├── forecasting.py     # Demand forecasting and evaluation
-├── replenishment.py   # Replenishment recommendations
-├── validation.py      # Data validation
-├── database.py        # SQLite persistence
-├── requirements.txt   # Python dependencies
-├── .gitignore         # Files excluded from Git
-└── README.md          # Project documentation
+├── app.py
+├── generator.py
+├── forecasting.py
+├── replenishment.py
+├── validation.py
+├── database.py
+├── requirements.txt
+└── README.md
 ```
 
-*The structure above assumes these files are present in the repository.*
-
-## Application Workflow
-
-1. Generate or load SKU-location demand data.
-2. Validate the input data.
-3. Forecast demand for the required planning horizon.
-4. Calculate replenishment recommendations using lead time, safety stock, and ordering constraints.
-5. Review results and visualizations in the dashboard.
-6. Persist relevant data in the local SQLite database.
+Your actual repository may contain additional files or a different layout. Update this section to match the files committed to GitHub.
 
 ## Getting Started
 
-### Prerequisites
-
-- Python 3.10 or later
-- pip
-- Git
-
-### Installation
-
-Clone the repository:
+### 1. Clone the repository
 
 ```bash
 git clone https://github.com/shalom-m-vishal/SKU-Demand-Forecasting-Replenishment.git
 cd SKU-Demand-Forecasting-Replenishment
 ```
 
-Create and activate a virtual environment on Windows:
+### 2. Create and activate a virtual environment
+
+**Windows:**
 
 ```bash
 python -m venv .venv
 .venv\Scripts\activate
 ```
 
-Install dependencies:
+**macOS / Linux:**
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+### 3. Install dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-If `requirements.txt` is not present yet, create it with the packages your application actually uses, including Streamlit, Pandas, and Plotly, plus any additional project dependencies.
+If the repository does not yet include a complete `requirements.txt`, install the packages used by the code, such as:
 
-### Run the Application
+```bash
+pip install streamlit pandas plotly
+```
+
+### 4. Run the application
 
 ```bash
 streamlit run app.py
 ```
 
-Open the local URL displayed in your terminal, usually `http://localhost:8501`.
+Streamlit will print a local URL in the terminal. Open that URL in your browser.
 
-## Business Value
+## Reproducibility
 
-The application is designed to help inventory planners:
+- Use the same generator settings and random seed, if supported, to reproduce synthetic datasets.
+- Keep forecasting and replenishment rules in their dedicated modules.
+- Record forecast metrics and recommendation outputs so decisions can be reviewed.
+- Validate generated and uploaded data before using it in the workflow.
 
-- Make more informed replenishment decisions.
-- Account for demand variability and supplier lead times.
-- Reduce the risk of stockouts and excess inventory.
-- Improve visibility into SKU-level inventory planning.
+## Future Improvements
 
-Actual business impact depends on the quality of the input data, forecasting accuracy, and operational constraints.
-
-## Future Enhancements
-
-- Integrate real-world sales and inventory datasets.
-- Compare multiple forecasting algorithms.
-- Add forecast accuracy metrics such as MAE, RMSE, and MAPE where appropriate.
-- Support multi-location inventory optimization.
-- Add supplier integrations and automated replenishment alerts.
-- Deploy the dashboard to a cloud platform.
+- Add time-series cross-validation and benchmark multiple forecasting models.
+- Include service-level-based safety-stock calculations.
+- Add supplier calendars, order-frequency rules, and budget constraints.
+- Track forecast bias, stockout risk, and inventory carrying cost.
+- Add automated tests for data validation and replenishment edge cases.
+- Add export options for recommendations and exception reports.
 
 ## Author
 
 **MUTTI REDDY SHALOM VISHAL**
 
-- GitHub: [shalom-m-vishal](https://github.com/shalom-m-vishal)
-- Project Repository: [SKU Demand Forecasting & Replenishment](https://github.com/shalom-m-vishal/SKU-Demand-Forecasting-Replenishment)
+GitHub: [shalom-m-vishal](https://github.com/shalom-m-vishal)
 
----
-
-*Developed as an AI-driven inventory planning project focused on demand forecasting and intelligent replenishment.*
+Project repository: [SKU Demand Forecasting & Replenishment](https://github.com/shalom-m-vishal/SKU-Demand-Forecasting-Replenishment)
